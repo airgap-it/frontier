@@ -219,7 +219,7 @@ impl<B: BlockT> EthBlockDataCacheTask<B> {
 
 		// Data is neither cached nor already requested, so we start fetching
 		// the data.
-		wait_list.insert(block_hash.clone(), vec![response_tx]);
+		wait_list.insert(block_hash, vec![response_tx]);
 
 		spawn_handle.spawn("EthBlockDataCacheTask Worker", None, async move {
 			let handler = overrides
@@ -467,7 +467,7 @@ where
 			let base_fee = if let Some(base_fee) = handler.base_fee(&id) {
 				base_fee
 			} else {
-				client.runtime_api().gas_price(&id).unwrap_or(U256::zero())
+				client.runtime_api().gas_price(&id).unwrap_or_else(|_|U256::zero())
 			};
 			let receipts = handler.current_receipts(&id);
 			let mut result = FeeHistoryCacheItem {
@@ -535,7 +535,6 @@ where
 						}
 						None
 					})
-					.map(|r| r)
 					.collect();
 			} else {
 				result.rewards = reward_percentiles.iter().map(|_| 0).collect();
@@ -584,7 +583,7 @@ where
 				if let Some(tree_route) = notification.tree_route {
 					if let Ok(fee_history_cache) = &mut fee_history_cache.lock() {
 						// Remove retracted.
-						let _ = tree_route.retracted().iter().map(|hash_and_number| {
+						let _lock = tree_route.retracted().iter().map(|hash_and_number| {
 							let n = UniqueSaturatedInto::<u64>::unique_saturated_into(
 								hash_and_number.number,
 							);
